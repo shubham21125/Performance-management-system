@@ -3,11 +3,8 @@
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5002').replace(/\/$/, '');
 
-// Central Authentication Module API endpoint (configurable via VITE_AUTH_API_URL)
-const RAW_AUTH_URL = import.meta.env.VITE_AUTH_API_URL || 'http://localhost:5000/api/auth/login';
-const AUTH_LOGIN_URL = RAW_AUTH_URL.endsWith('/login')
-  ? RAW_AUTH_URL
-  : `${RAW_AUTH_URL.replace(/\/$/, '')}/api/auth/login`;
+// Login uses this project's own backend — same host/port as all other API calls
+const AUTH_LOGIN_URL = `${API_BASE_URL}/api/auth/login`;
 
 export function getAuthToken() {
   return localStorage.getItem('auth_token');
@@ -70,27 +67,12 @@ export async function request(endpoint, options = {}) {
 
 // API methods
 export const api = {
-  // Auth — delegates credential verification strictly to the central Authentication service
-  login: async (username, password) => {
-    const response = await fetch(AUTH_LOGIN_URL, {
+  // Auth — uses this project's own backend login endpoint
+  login: (username, password) =>
+    request('/api/auth/login', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify({ username, password }),
-    });
-
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      const error = new Error(data.message || 'Invalid username or password.');
-      error.status = response.status;
-      error.data = data;
-      throw error;
-    }
-
-    return data;
-  },
+    }),
 
   getCurrentUser: () => request('/api/auth/me'),
 

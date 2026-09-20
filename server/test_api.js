@@ -45,12 +45,12 @@ async function runTests() {
 
   // 2. Auth & JWT Verification Tests
   console.log('\n[Test Suite 2: Authentication & JWT Verification]');
-  // Verify this server does NOT host /api/auth/login (must return 404)
-  const loginAttempt = await api('/api/auth/login', {
+  // Login via this project's own POST /api/auth/login
+  const loginRes = await api('/api/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ username: 'admin', password: 'password' }),
+    body: JSON.stringify({ username: 'superadmin', password: process.env.ADMIN_SEED_PASSWORD || 'Admin@123' }),
   });
-  assert(loginAttempt.status === 404, 'POST /api/auth/login returns 404 (Auth handled exclusively by central Auth module)');
+  assert(loginRes.status === 200 && loginRes.data.success === true && loginRes.data.token, 'POST /api/auth/login returns 200 with JWT token');
 
   // Unauthenticated request
   const noAuth = await api('/api/auth/me');
@@ -62,10 +62,11 @@ async function runTests() {
   });
   assert(badToken.status === 401 && badToken.data.success === false, 'Invalid token returns 401');
 
-  // Issue valid JWT tokens using shared JWT_SECRET (as issued by the central Auth module)
-  const adminToken = jwt.sign({ employeeId: 6, roleId: 1 }, process.env.JWT_SECRET, { expiresIn: '1h' });
+  // Issue valid JWT tokens using shared JWT_SECRET
+  const adminToken = loginRes.data.token; // Use real token from login
   const mgrToken = jwt.sign({ employeeId: 1, roleId: 2, reportingManagerId: null }, process.env.JWT_SECRET, { expiresIn: '1h' });
   const empToken = jwt.sign({ employeeId: 3, roleId: 4, reportingManagerId: 1 }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
 
   // Admin token verification via GET /api/auth/me
   const adminMe = await api('/api/auth/me', { headers: { Authorization: `Bearer ${adminToken}` } });
